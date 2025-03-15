@@ -1,16 +1,15 @@
-package com.example.aroundegypt.features.homeScreen
+package com.example.aroundegypt.presentation.features.homeScreen
 
+import android.content.ClipData.Item
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Menu
@@ -26,22 +25,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.aroundegypt.R
-import com.example.aroundegypt.features.experienceScreen.ExperienceBottomSheet
+import com.example.aroundegypt.domain.entity.Data
+import com.example.aroundegypt.domain.entity.Experience
+import com.example.aroundegypt.domain.entity.ExperienceModel
+import com.example.aroundegypt.presentation.component.ExperienceBottomSheet
 import com.example.aroundegypt.ui.theme.IconColor
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true)
 @Composable
-fun HomeScreen() {
-    val recommendedExperiences = listOf(
-        Experience("Nubian House", 372),
-        Experience("Egyptian Desert", 45),
-        Experience("Egyptian Desert", 45)
-    )
+fun HomeScreen(viewModel: HomeViewModel) {
+
+    val recommendedexperiences by viewModel.recommendedExperiences.collectAsState()
+    val recentExperiences by viewModel.recentExperiences.collectAsState()
+
+//    val recommendedList = recommendedexperiences.map { it.data }
+//    val recentList = recentExperiences.map { it.data }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isBottomSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -55,39 +57,76 @@ fun HomeScreen() {
     Scaffold(
         topBar = { CustomTopAppBar() }
     ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(start = 19.dp)
-            ) {
-
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(start = 19.dp)
+        ) {
+            item {
                 Text(
                     text = "Welcome!",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
 
+            item {
                 Text(
-                    text = "Now you can explore any experience in 360 \n" +
-                            "degrees and get all the details about it all in \n" +
+                    text = "Now you can explore any experience in 360 " +
+                            "degrees and get all the details about it all in " +
                             "one place.",
                     fontSize = 14.sp
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
+            }
 
-                RecommendedSection(recommendedExperiences)
+            item {
+                Text(
+                    text = "Most Recent",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
 
-                RecentSection(recommendedExperiences)
+            item {
+                LazyColumn {
+                    items(recommendedexperiences) { experience ->
+                        ExperienceCard(
+                            experience = experience,
+                            onclick = { isBottomSheetOpen = true }
+                        )
+                    }
+                }
+            }
 
+            item {
+                Text(
+                    text = "Most Recent",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp, end = 19.dp)
+                )
+            }
+
+            item {
+                LazyColumn {
+                    items(recentExperiences) { experience ->
+                        ExperienceCard(
+                            experience = experience,
+                            onclick = { isBottomSheetOpen = true }
+                        )
+                    }
+                }
             }
         }
+    }
 }
 
 @Composable
 fun ExperienceCard(
-    experience: Experience,
+    experience: Data,
     onclick : () -> Unit = {}
 ) {
 
@@ -108,12 +147,18 @@ fun ExperienceCard(
                 .clip(RoundedCornerShape(8.dp))
                 .clickable { onclick() },
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.sample_img),
-                contentDescription = null,
+            AsyncImage(
+                model = experience.cover_photo,
+                contentDescription = "Place Image",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+//            Image(
+//                painter = painterResource(id = experience.imageUrl),
+//                contentDescription = null,
+//                modifier = Modifier.fillMaxSize(),
+//                contentScale = ContentScale.Crop
+//            )
             Icon(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -168,13 +213,13 @@ fun ExperienceCard(
             horizontalArrangement = Arrangement.Absolute.SpaceBetween
         ) {
             Text(
-                text = experience.name,
+                text = experience.title,
                 fontSize = 14.sp
             )
-            Spacer(modifier = Modifier.width(50.dp))
+            Spacer(modifier = Modifier.width(100.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${experience.count}",
+                    text = "${experience.likes_no}",
                     fontSize = 14.sp,
                 )
                 IconButton(
@@ -192,8 +237,6 @@ fun ExperienceCard(
         }
     }
 }
-
-data class Experience(val name: String, val count: Int)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -242,66 +285,86 @@ fun SearchBar() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RecentSection(recommendedExperiences: List<Experience>) {
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isBottomSheetOpen by rememberSaveable { mutableStateOf(false) }
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun RecommendedSection(recommendedExperiences: List<Experience>) {
+//
+//    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+//    var isBottomSheetOpen by rememberSaveable { mutableStateOf(false) }
+//
+//    ExperienceBottomSheet(
+//        sheetState = sheetState,
+//        isOpen = isBottomSheetOpen,
+//        onDismissRequest = { isBottomSheetOpen = false }
+//    )
+//    Column {
+//        Text(
+//            text = "Most Recent",
+//            fontSize = 22.sp,
+//            fontWeight = FontWeight.Bold,
+//            modifier = Modifier.padding(bottom = 8.dp)
+//        )
+//
+//        LazyColumn {
+//            items(recommendedExperiences) { experience ->
+//                ExperienceCard(
+//                    experience = experience,
+//                    onclick = { isBottomSheetOpen = true }
+//                )
+//            }
+//        }
+//    }
+//
+//}
 
-    ExperienceBottomSheet(
-        sheetState = sheetState,
-        isOpen = isBottomSheetOpen,
-        onDismissRequest = { isBottomSheetOpen = false }
-    )
-    Column {
-        Text(
-            text = "Most Recent",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyColumn {
-            items(recommendedExperiences) { experience ->
-                ExperienceCard(
-                    experience = experience,
-                    onclick = { isBottomSheetOpen = true }
-                )
-            }
-        }
-    }
-
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RecommendedSection(recommendedExperiences: List<Experience>) {
-
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isBottomSheetOpen by rememberSaveable { mutableStateOf(false) }
-
-    ExperienceBottomSheet(
-        sheetState = sheetState,
-        isOpen = isBottomSheetOpen,
-        onDismissRequest = { isBottomSheetOpen = false }
-    )
-
-    Column {
-        Text(
-            text = "Recommended Experiences",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyRow {
-            items(recommendedExperiences) { experience ->
-                ExperienceCard(
-                    experience = experience,
-                    onclick = { isBottomSheetOpen = true }
-                )
-            }
-        }
-    }
-}
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun RecentSection(recentExperiences: List<Experience>) {
+//
+//    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+//    var isBottomSheetOpen by rememberSaveable { mutableStateOf(false) }
+//
+//    ExperienceBottomSheet(
+//        sheetState = sheetState,
+//        isOpen = isBottomSheetOpen,
+//        onDismissRequest = { isBottomSheetOpen = false }
+//    )
+//    Column {
+//        Text(
+//            text = "Most Recent",
+//            fontSize = 22.sp,
+//            fontWeight = FontWeight.Bold,
+//            modifier = Modifier.padding(bottom = 8.dp, end = 19.dp)
+//        )
+//
+//        LazyColumn {
+//            items(recentExperiences) { experience ->
+//                ExperienceCard(
+//                    experience = experience,
+//                    onclick = { isBottomSheetOpen = true }
+//                )
+//            }
+//        }
+//    }
+//
+//}
+//
+//data class Experience0(
+//    val id: Int,
+//    val title: String,
+//    val description: String,
+////    val is_liked: Boolean,
+//    val imageUrl: Int,
+//    val likes_no: Int,
+//)
+//
+//val listExperience = listOf{
+//    Experience0(id = 1, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//    Experience0(id = 2, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//    Experience0(id = 3, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//    Experience0(id = 4, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//    Experience0(id = 5, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//    Experience0(id = 6, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//    Experience0(id = 7, title = "Abu Simbel Temples", description = "", imageUrl = R.drawable.sample_img, likes_no = 12)
+//}
